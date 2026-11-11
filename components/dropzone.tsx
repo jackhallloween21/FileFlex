@@ -64,6 +64,19 @@ const extensions = {
   audio: ["mp3", "wav", "ogg", "aac", "wma", "flac", "m4a"],
 };
 
+// Browsers report an empty MIME type for formats they don't know (e.g. .eac3),
+// which breaks upload filtering and the "convert to" options. Infer it from the extension.
+const EXTRA_AUDIO = ["eac3", "ac3", "ec3", "opus", "aif", "aiff", "amr", "mka", "dts", "caf", "ape", "wv"];
+const EXTRA_VIDEO = ["ts", "m2ts", "mts", "mpg", "mpeg", "vob"];
+function guessFileType(file: File): string {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (extensions.audio.includes(ext) || EXTRA_AUDIO.includes(ext)) return "audio/" + ext;
+  if (extensions.video.includes(ext) || EXTRA_VIDEO.includes(ext)) return "video/" + ext;
+  if (extensions.image.includes(ext)) return "image/" + ext;
+  return file.type;
+}
+
 export default function Dropzone() {
   const { toast } = useToast();
   const [is_hover, setIsHover] = useState<boolean>(false);
@@ -90,8 +103,8 @@ export default function Dropzone() {
       ".raw",
       ".tga",
     ],
-    "audio/*": [],
-    "video/*": [],
+    "audio/*": [".eac3", ".ac3", ".ec3", ".opus", ".aif", ".aiff", ".amr", ".mka", ".dts", ".caf", ".ape", ".wv"],
+    "video/*": [".ts", ".m2ts", ".mts", ".mpg", ".mpeg", ".vob"],
   };
 
   // functions
@@ -170,7 +183,7 @@ export default function Dropzone() {
         file_size: file.size,
         from: file.name.slice(((file.name.lastIndexOf(".") - 1) >>> 0) + 2),
         to: null,
-        file_type: file.type,
+        file_type: guessFileType(file),
         file,
         is_converted: false,
         is_converting: false,
