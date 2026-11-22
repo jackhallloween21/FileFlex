@@ -4,9 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/copy-ffmpeg-core.js && node scripts/copy-pdfjs-worker.js",
+    "prebuild": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && node scripts/copy-ffmpeg-core.js && node scripts/copy-pdfjs-worker.js",
     "build": "next build",
-    "postbuild": "node -e \"require('fs').rmSync('.next/cache',{recursive:true,force:true})\"",
     "start": "next start",
     "lint": "next lint"
   },
