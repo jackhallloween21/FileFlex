@@ -30,7 +30,13 @@ function startServer() {
 
 app.whenReady().then(async () => {
   const port = await startServer();
-  const win = new BrowserWindow({ width: 1200, height: 800, autoHideMenuBar: true, title: 'FileFlex' });
+  const win = new BrowserWindow({
+    width: 1200,
+    height: 800,
+    autoHideMenuBar: true,
+    title: 'FileFlex',
+    icon: path.join(ROOT, 'favicon.ico'),
+  });
   win.loadURL(`http://127.0.0.1:${port}/`);
 });
 app.on('window-all-closed', () => app.quit());

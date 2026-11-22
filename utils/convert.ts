@@ -2,6 +2,7 @@
 import { Action } from '@/types';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile } from '@ffmpeg/util';
+import { convertPdfToImage } from './convert-pdf';
 
 function getFileExtension(file_name: string) {
   const regex = /(?:\.([^.]+))?$/; // Matches the last dot and everything after it
@@ -25,6 +26,13 @@ export default async function convert(
   action: Action,
 ): Promise<any> {
   const { file, to, file_name, file_type } = action;
+  if (file_type === 'application/pdf' || file_name.toLowerCase().endsWith('.pdf')) {
+    const format = to as string;
+    if (!['png', 'jpg', 'jpeg', 'webp'].includes(format)) {
+      throw new Error(`Cannot convert PDF to ${format}. Supported formats: png, jpg, jpeg, webp`);
+    }
+    return convertPdfToImage(file, format as 'png' | 'jpg' | 'jpeg' | 'webp');
+  }
   const input = getFileExtension(file_name);
   const output = removeFileExtension(file_name) + '.' + to;
   ffmpeg.writeFile(input, await fetchFile(file));

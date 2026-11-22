@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "node scripts/copy-ffmpeg-core.js",
+    "prebuild": "node scripts/copy-ffmpeg-core.js && node scripts/copy-pdfjs-worker.js",
     "build": "next build",
     "postbuild": "node -e \"require('fs').rmSync('.next/cache',{recursive:true,force:true})\"",
     "start": "next start",
@@ -32,6 +32,7 @@
     "lucide-react": "^0.274.0",
     "next": "14.2.3",
     "next-themes": "^0.2.1",
+    "pdfjs-dist": "^4.10.38",
     "postcss": "8.4.29",
     "react": "18.2.0",
     "react-dom": "18.2.0",

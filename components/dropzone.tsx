@@ -73,6 +73,7 @@ function guessFileType(file: File): string {
   if (extensions.audio.includes(ext) || EXTRA_AUDIO.includes(ext)) return "audio/" + ext;
   if (extensions.video.includes(ext) || EXTRA_VIDEO.includes(ext)) return "video/" + ext;
   if (extensions.image.includes(ext)) return "image/" + ext;
+  if (ext === "pdf") return "application/pdf";
   return file.type;
 }
 
@@ -102,6 +103,7 @@ export default function Dropzone() {
   const [defaultValues, setDefaultValues] = useState<string>("video");
   const [selcted, setSelected] = useState<string>("...");
   const accepted_files = {
+    "application/pdf": [".pdf"],
     "image/*": [
       ".jpg",
       ".jpeg",
@@ -416,6 +418,18 @@ export default function Dropzone() {
                         ))}
                       </div>
                     )}
+                    {(action.file_type.includes("pdf") ||
+                      action.file_name.toLowerCase().endsWith(".pdf")) && (
+                      <div className="grid grid-cols-2 gap-2 w-fit">
+                        {["png", "jpg", "jpeg", "webp"].map((format) => (
+                          <div key={format} className="col-span-1 text-center">
+                            <SelectItem value={format} className="mx-auto">
+                              {format}
+                            </SelectItem>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -489,7 +503,7 @@ export default function Dropzone() {
         toast({
           variant: "destructive",
           title: "Error uploading your file(s)",
-          description: "Allowed Files: Audio, Video and Images.",
+          description: "Allowed Files: Audio, Video, Images and PDFs.",
           duration: 5000,
         });
       }}
@@ -498,7 +512,7 @@ export default function Dropzone() {
         toast({
           variant: "destructive",
           title: "Error uploading your file(s)",
-          description: "Allowed Files: Audio, Video and Images.",
+          description: "Allowed Files: Audio, Video, Images and PDFs.",
           duration: 5000,
         });
       }}
