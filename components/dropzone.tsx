@@ -10,7 +10,6 @@ import { useToast } from "@/components/ui/use-toast";
 import compressFileName from "@/utils/compress-file-name";
 import { Skeleton } from "@/components/ui/skeleton";
 import convertFile from "@/utils/convert";
-import { ImSpinner3 } from "react-icons/im";
 import { MdDone } from "react-icons/md";
 import { Badge } from "@/components/ui/badge";
 import { HiOutlineDownload } from "react-icons/hi";
@@ -77,6 +76,17 @@ function guessFileType(file: File): string {
   return file.type;
 }
 
+function formatEta(seconds: number | null | undefined): string {
+  if (seconds == null || !isFinite(seconds)) return "calculating…";
+  const s = Math.max(0, Math.round(seconds));
+  if (s < 60) return `${s}s left`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${s % 60}s left`;
+  return `${Math.floor(m / 60)}h ${m % 60}m left`;
+}
+
+type Progress = { pct: number; eta: number | null };
+
 export default function Dropzone() {
   const { toast } = useToast();
   const [is_hover, setIsHover] = useState<boolean>(false);
@@ -87,6 +97,8 @@ export default function Dropzone() {
   const [is_converting, setIsConverting] = useState<boolean>(false);
   const [is_done, setIsDone] = useState<boolean>(false);
   const ffmpegRef = useRef<any>(null);
+  const [progress, setProgress] = useState<Record<string, Progress>>({});
+  const [overall, setOverall] = useState<Progress>({ pct: 0, eta: null });
   const [defaultValues, setDefaultValues] = useState<string>("video");
   const [selcted, setSelected] = useState<string>("...");
   const accepted_files = {
@@ -140,9 +152,43 @@ export default function Dropzone() {
     }));
     setActions(tmp_actions);
     setIsConverting(true);
+    setProgress({});
+    setOverall({ pct: 0, eta: null });
+    const total = tmp_actions.length;
+    const batchStart = Date.now();
+    let index = 0;
+    let current = "";
+    let t0 = 0; // time of first progress event for current file
+    let p0 = 0;
+    const onProgress = ({ progress: p }: { progress: number }) => {
+      // ffmpeg can report values outside 0..1 when input duration is unknown
+      const ratio = Math.min(Math.max(p || 0, 0), 0.99);
+      const now = Date.now();
+      if (!t0) {
+        t0 = now;
+        p0 = ratio;
+      }
+      let eta: number | null = null;
+      if (ratio - p0 > 0.005) {
+        eta = ((now - t0) / 1000 / (ratio - p0)) * (1 - ratio);
+      }
+      setProgress((prev) => ({ ...prev, [current]: { pct: ratio * 100, eta } }));
+      // overall: finished files + fraction of the current one
+      const overallRatio = (index + ratio) / total;
+      let overallEta: number | null = null;
+      if (overallRatio > 0.005 && now - batchStart > 3000) {
+        overallEta = ((now - batchStart) / 1000 / overallRatio) * (1 - overallRatio);
+      }
+      setOverall({ pct: overallRatio * 100, eta: overallEta });
+    };
+    ffmpegRef.current.on("progress", onProgress);
     for (let action of tmp_actions) {
+      current = action.file_name;
+      t0 = 0;
       try {
         const { url, output } = await convertFile(ffmpegRef.current, action);
+        setProgress((prev) => ({ ...prev, [current]: { pct: 100, eta: 0 } }));
+        index++;
         tmp_actions = tmp_actions.map((elt) =>
           elt === action
             ? {
@@ -167,8 +213,10 @@ export default function Dropzone() {
             : elt
         );
         setActions(tmp_actions);
+        index++;
       }
     }
+    ffmpegRef.current.off("progress", onProgress);
     setIsDone(true);
     setIsConverting(false);
   };
@@ -273,12 +321,26 @@ export default function Dropzone() {
                 <MdDone />
               </Badge>
             ) : action.is_converting ? (
-              <Badge variant="default" className="flex gap-2">
-                <span>Converting</span>
-                <span className="animate-spin">
-                  <ImSpinner3 />
-                </span>
-              </Badge>
+              <div className="flex flex-col gap-1 w-56">
+                <div className="flex justify-between text-xs font-medium">
+                  <span>
+                    {progress[action.file_name]
+                      ? `${Math.floor(progress[action.file_name].pct)}%`
+                      : "Preparing…"}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {progress[action.file_name]
+                      ? formatEta(progress[action.file_name].eta)
+                      : "loading file"}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300"
+                    style={{ width: `${progress[action.file_name]?.pct ?? 0}%` }}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="flex items-center gap-4 text-muted-foreground text-md">
                 <span>Convert to</span>
@@ -401,8 +463,10 @@ export default function Dropzone() {
               onClick={convert}
             >
               {is_converting ? (
-                <span className="text-lg animate-spin">
-                  <ImSpinner3 />
+                <span className="text-sm">
+                  {overall.pct > 0
+                    ? `${Math.floor(overall.pct)}% · ${formatEta(overall.eta)}`
+                    : "Preparing…"}
                 </span>
               ) : (
                 <span>Convert Now</span>
